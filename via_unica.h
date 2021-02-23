@@ -71,7 +71,7 @@ class ViaUnica {
 		trains* _p_trains;
 		std::string _direction;
 	public:
-		ViaUnica(std::string key="via_unica_1");
+		ViaUnica(std::string key="via_unica_1", bool init=false);
 
 		void inNorth();
 

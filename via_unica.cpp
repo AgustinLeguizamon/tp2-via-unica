@@ -1,6 +1,6 @@
 #include "via_unica.h"
 
-ViaUnica::ViaUnica(std::string key){
+ViaUnica::ViaUnica(std::string key, bool init){
 	this->_key=key;
 	std::string mutex_key=key+"_mutex";
 	std::string shm_key=key+"_shm";
@@ -16,13 +16,17 @@ ViaUnica::ViaUnica(std::string key){
 	this->_p_trains = reinterpret_cast<trains*>(_memViaUnica.map(sizeof(trains)));
 	_p_trains->init();
 
+	if(init){
+		changeDirection("SN");
+	}
+
 	std::cout << "Tomado " << this->_mutex << std::endl;
 	std::cout << "Tomado " << this->_north << std::endl;
 	std::cout << "Tomado " << this->_south << std::endl;
 	std::cout << "Tomado " << this->_memViaUnica << " con valor " << _p_trains->getInside() << std::endl;
 }
 
-/*Race condition? 
+/*ver si Race condition? 
 cada in ejecuta esto, por lo tanto
 pueden haber muchas mas posts al estar todos
 iterando*/

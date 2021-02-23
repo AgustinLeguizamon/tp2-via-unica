@@ -4,7 +4,7 @@
 #include "via_unica.cpp"
 
 int main(int argc, char const *argv[]){
-	ViaUnica viaUnica("via_unica_1");
+	ViaUnica viaUnica("via_unica_1", true);
 	std::cout << "Creada " << viaUnica <<std::endl;
 	return 0;
 }
