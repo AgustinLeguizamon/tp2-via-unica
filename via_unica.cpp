@@ -69,8 +69,18 @@ void ViaUnica::outSouth(){
 	_mutex.wait();
 	
 	_p_trains->out();
-	std::cout << "Salio sur - trenes adentro" << _p_trains->getInside() << std::endl;
 
+	/*soy el ultimo y hubo un cambio de direccion*/
+	if(_p_trains->getInside() == 0 && _p_trains->isSouthOpen()){
+		_south.post();
+		
+		const int queued_south = _p_trains->getQueuedSouth();
+		for(int i=0 ; i < queued_south; i++){
+			_openSouth();
+		}		
+	}
+	
+	std::cout << "Salio sur - trenes adentro" << _p_trains->getInside() << std::endl;
 	_mutex.post();
 }
 
@@ -94,39 +104,61 @@ void ViaUnica::inSouth(){
 
 void ViaUnica::outNorth(){
 	_mutex.wait();
-	
+	std::cout << "TOME MUTEX" << std::endl;
 	_p_trains->out();
+
+	/*Si es el ultimo y resulta que cambie de direccion es porque hay del otro lado esperando a entrar*/
+	if(_p_trains->getInside() == 0 && _p_trains->isNorthOpen()){
+		/*habilito la barrera norte*/
+		std::cout << "SALIO EL ULTIMO POR EL NORTE" << std::endl;
+		_north.post();
+
+		/*Luego hago pasar a todos los trenes encolados*/
+		const int queued_north = _p_trains->getQueuedNorth();
+		for(int i=0 ; i < queued_north; i++){
+			_openNorth();
+		}	
+	}
 
 	std::cout << "Salio norte - trenes adentro: " << _p_trains->getInside() << std::endl;	
 	_mutex.post();
 }
 
 void ViaUnica::changeDirection(const std::string& s_new_direction){
-	_mutex.wait();
+	//_mutex.wait();
 	if(s_new_direction.compare("SN") == 0){
-		_p_trains->setDirection(SN);
-		std::cout << "Sentido SN habilitado" << std::endl;
-		/*abro para todos los que estan esperando entrar
-		OJO, que pasa si todavia tengo trenes en sentido contrario
-		tengo que esperar a que se vacie y eso no lo contempla*/
-		const int queued_south = _p_trains->getQueuedSouth();
-		for(int i=0 ; i < queued_south; i++){
-			_openSouth();
-		}		
-	} else if(s_new_direction.compare("NS") == 0){
-		std::cout << "Sentido NS habilitado" << std::endl;
-		_p_trains->setDirection(NS);
-		/*Race condition cada openNOrth me reduce el contador, jodiendo eeste for
-		por eso lo guardo antes*/
-		const int queued_north = _p_trains->getQueuedNorth();
-		for(int i=0 ; i < queued_north; i++){
-			_openNorth();
+		std::cout << "Realizando cambio de via" << std::endl;
+		
+		if(_p_trains->getInside() != 0 && _p_trains->isNorthOpen()){
+			std::cout << "Sentido SN habilitado pero a la espera de que salgan los trenes del Norte" << std::endl;
+			_p_trains->setDirection(SN);
+			_south.wait();
+			/*no libero el _mutex!*/
+		} else {
+			_p_trains->setDirection(SN);
+			std::cout << "Sentido SN habilitado" << std::endl;
 		}
+
+	} else if(s_new_direction.compare("NS") == 0){
+		std::cout << "Realizando cambio de via" << std::endl;
+		
+		/*Si hay trenes adentro y su direccion es SN, bloqueo la entrada norte
+		para evitar mandar los trenes en la cola norte hasta que hayan salido los que viene por puerta sur*/
+		if(_p_trains->getInside() != 0 && _p_trains->isSouthOpen()) {
+			std::cout << "Sentido NS habilitado pero a la espera de que salgan los trenes del Sur" << std::endl;
+			_p_trains->setDirection(NS);
+			_north.wait();
+		} else {
+			std::cout << "Sentido NS habilitado" << std::endl;
+			_p_trains->setDirection(NS);
+		}
+		
+		
 	} else {
 		std::cout << "Ingresar: SN o NS" << std::endl; 
 	}
 	
-	_mutex.post();
+	//_mutex.post();
 }
 
 void ViaUnica::del(){
