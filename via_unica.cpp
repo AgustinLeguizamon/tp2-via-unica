@@ -29,6 +29,8 @@ ViaUnica::ViaUnica(std::string key, bool init){
 cada in ejecuta esto, por lo tanto
 pueden haber muchas mas posts al estar todos
 iterando*/
+
+/*separar el post del enterNorth para evitar RC cuando hago un for*/
 void ViaUnica::_openNorth(){
 	_p_trains->enterNorth();
 	std::cout << "DEBUG Entro Norte - trenes adentro: " << _p_trains->getInside() << std::endl;
@@ -95,7 +97,7 @@ void ViaUnica::outNorth(){
 	
 	_p_trains->out();
 
-	std::cout << "Salio norte - trenes adentro" << _p_trains->getInside() << std::endl;	
+	std::cout << "Salio norte - trenes adentro: " << _p_trains->getInside() << std::endl;	
 	_mutex.post();
 }
 
@@ -104,14 +106,20 @@ void ViaUnica::changeDirection(const std::string& s_new_direction){
 	if(s_new_direction.compare("SN") == 0){
 		_p_trains->setDirection(SN);
 		std::cout << "Sentido SN habilitado" << std::endl;
-		/*abro para todos los que estan esperando entrar*/
-		for(int i=0 ; i < _p_trains->getQueuedSouth(); i++){
+		/*abro para todos los que estan esperando entrar
+		OJO, que pasa si todavia tengo trenes en sentido contrario
+		tengo que esperar a que se vacie y eso no lo contempla*/
+		const int queued_south = _p_trains->getQueuedSouth();
+		for(int i=0 ; i < queued_south; i++){
 			_openSouth();
 		}		
 	} else if(s_new_direction.compare("NS") == 0){
 		std::cout << "Sentido NS habilitado" << std::endl;
 		_p_trains->setDirection(NS);
-		for(int i=0 ; i < _p_trains->getQueuedNorth(); i++){
+		/*Race condition cada openNOrth me reduce el contador, jodiendo eeste for
+		por eso lo guardo antes*/
+		const int queued_north = _p_trains->getQueuedNorth();
+		for(int i=0 ; i < queued_north; i++){
 			_openNorth();
 		}
 	} else {
