@@ -5,17 +5,25 @@
 #ifndef VIAUNICA_H
 #define VIAUNICA_H
 
+#define NS 0
+#define SN 1
+
 class trains{
 	private:
 		int _inside;
 		int _queued_north;
 		int _queued_south;
 	
+		int _direction=SN;
+		
 	public:
 
-		void init(int north=0, int south=0, int inside=0){
-			_queued_north=north; _queued_south=south; _inside=inside;
-			cout<<"trenes inicializado"<<north<<","<<south<<","<<inside<<endl;
+		void init(int north=0, int south=0, int inside=0, int dir=SN){
+			_queued_north=north; 
+			_queued_south=south; 
+			_inside=inside; 
+			_direction=dir;
+			cout<<"trenes inicializado"<<north<<","<<south<<","<<inside << ", dir; " << dir << std::endl;
 		}
 
 		void queueNorth(){
@@ -52,6 +60,22 @@ class trains{
 			return _queued_south;
 		}
 
+		void setDirection(const int s_new_direction){
+			this->_direction=s_new_direction;
+		}
+
+		int getDirection(){
+			return _direction;
+		}
+
+		bool isNorthOpen(){
+			return (_direction == NS);
+		}
+
+		bool isSouthOpen(){
+			return (_direction == SN);
+		}
+
 		friend ostream& operator<<(ostream& os, trains& t){
 			return os << "(" << t._queued_north << "," << t._queued_south << "," << t._inside;
 		}
@@ -61,15 +85,12 @@ class trains{
 class ViaUnica {
 	private:
 		std::string _key;
-		
 		sv_sem _mutex;
 		sv_sem _north;
 		sv_sem _south;
-		
 		sv_shm _memViaUnica;
-		
 		trains* _p_trains;
-		std::string _direction;
+		
 	public:
 		ViaUnica(std::string key="via_unica_1", bool init=false);
 
@@ -81,7 +102,7 @@ class ViaUnica {
 
 		void outNorth();
 
-		void changeDirection(std::string s_new_direction);
+		void changeDirection(const std::string& s_new_direction);
 
 		void del();
 
