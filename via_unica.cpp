@@ -14,9 +14,9 @@ ViaUnica::ViaUnica(std::string key, bool init){
 	this->_memViaUnica = sv_shm(shm_key);
 
 	this->_p_trains = reinterpret_cast<trains*>(_memViaUnica.map(sizeof(trains)));
-	_p_trains->init();
-
+	
 	if(init){
+		_p_trains->init();
 		changeDirection("SN");
 	}
 
