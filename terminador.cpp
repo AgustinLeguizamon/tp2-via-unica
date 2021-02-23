@@ -4,7 +4,7 @@
 
 int main(int argc, char const *argv[]){
 	std::cout << "Terminador" << std::endl;
-	ViaUnica viaUnica("via_unica_7");
+	ViaUnica viaUnica("via_unica_1");
 	std::cout << "Borrando" << viaUnica << std::endl;
 	viaUnica.del();
 	return 0;

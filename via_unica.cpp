@@ -1,55 +1,65 @@
 #include "via_unica.h"
 
-ViaUnica::ViaUnica(std::string key, bool init){
+ViaUnica::ViaUnica(std::string key){
 	this->_key=key;
 	std::string mutex_key=key+"_mutex";
 	std::string shm_key=key+"_shm";
 	std::string north_mutex_key=key+"_north";
 	std::string south_mutex_key=key+"_south";
 	
-	this->_mutex = sv_sem(mutex_key);
-	this->_north = sv_sem(north_mutex_key);
-	this->_south = sv_sem(south_mutex_key);
+	this->_mutex = sv_sem(mutex_key,1);
+	/*Pongo en 0 para que al prime wait se cierre*/
+	this->_north = sv_sem(north_mutex_key,0);
+	this->_south = sv_sem(south_mutex_key,0);
 	this->_memViaUnica = sv_shm(shm_key);
 
-	this->_p_counter = reinterpret_cast<counter*>(_memViaUnica.map(sizeof(counter)));
+	this->_p_trains = reinterpret_cast<trains*>(_memViaUnica.map(sizeof(trains)));
+	_p_trains->init();
+
 	std::cout << "Tomado " << this->_mutex << std::endl;
 	std::cout << "Tomado " << this->_north << std::endl;
 	std::cout << "Tomado " << this->_south << std::endl;
-	std::cout << "Tomado " << this->_memViaUnica << " con valor " << _p_counter->n << std::endl;
-
-	if(init){
-		changeDirection("SN");	
-	}
+	std::cout << "Tomado " << this->_memViaUnica << " con valor " << _p_trains->getInside() << std::endl;
 }
+
+/*Race condition? 
+cada in ejecuta esto, por lo tanto
+pueden haber muchas mas posts al estar todos
+iterando*/
+void ViaUnica::_openNorth(){
+	_p_trains->enterNorth();
+	std::cout << "DEBUG N: trenes adentro" << _p_trains->getInside() << std::endl;
+	_north.post();
+}
+
+
+void ViaUnica::_openSouth(){
+	_p_trains->enterSouth();
+	std::cout << "DEBUG S: trenes adentro" << _p_trains->getInside() << std::endl;
+	_south.post();
+}
+
 
 void ViaUnica::inNorth(){
 	_mutex.wait();
 	
-	/*Si sentido es SN se me bloquea*/
-	if(_p_counter->n == 0) _north.wait();
+	_p_trains->queueNorth();
+	if(_direction == "NS"){
+		/*abro uno solo, solo funciona si entra de uno
+		acordate que al liberar no siempre es el mismo que lo bloqueo*/
+		_openNorth();
+	}
 	
-	/*cuando se desbloquea, si lo estaba, entra a la via*/	
-	_p_counter->n++;
-	cout << "Trenes en via unica: " << _p_counter->n << std::endl;
-	
-	/*toma el mutex sur, -1 salida sur pero bloquea si es 0*/
-	//_south.wait()
-
 	_mutex.post();
+	/*wait va despues pq si no, no libero el mutex*/
+	_north.wait();
 }
 
+/*mutex no es necesario*/
 void ViaUnica::outSouth(){
 	_mutex.wait();
 	
-	_p_counter->n--;
-	cout << "Trenes en via unica:" << _p_counter->n << std::endl;
-	
-	//+1 a la salida sur, libera un proceso bloqueado por _south
-	//_south.post();
-	
-	/*cuando es el utlimo en salir, _north vuelve a 1; libero el mutex*/
-	if(_p_counter->n == 0) _north.post();
+	_p_trains->out();
 	
 	_mutex.post();
 }
@@ -60,42 +70,37 @@ void ViaUnica::inSouth(){
 	/*NOTA 1: que pasa si cambio direccion pero todavia tengo trenes de SN??*/
 	/*deberia esperar a que se vacie los de ese sentido*/
 	/*actualmente funciona solo si cambio de direccion y esta vacio*/
-
-	/*Si sentido es NS se me bloquea*/
-	if(_p_counter->n == 0) _south.wait();
+	_p_trains->queueSouth();
+	if(_direction == "SN"){
+		_openSouth();
+	}
 	
-	_p_counter->n++;
-	cout << "Trenes en via unica:" << _p_counter->n << std::endl;
-	
-	//-1 semaforo norte
-	//_north.wait();
-
 	_mutex.post();
 }
 
 void ViaUnica::outNorth(){
 	_mutex.wait();
 	
-	_p_counter->n--;
-	cout << "Trenes en via unica:" << _p_counter->n << std::endl;
+	_p_trains->out();
 	
-	if(_p_counter->n == 0) _south.post();
-
 	_mutex.post();
 }
 
 void ViaUnica::changeDirection(std::string s_new_direction){
 	_mutex.wait();
 	if(s_new_direction == "SN"){
-		_south.post();
-		_north.wait();
 		this->_direction=s_new_direction;
 		std::cout << "Sentido SN habilitado" << std::endl;
+		/*abro para todos los que estan esperando entrar*/
+		for(int i=0 ; i < _p_trains->getQueuedSouth(); i++){
+			_openSouth();
+		}		
 	} else if(s_new_direction == "NS"){
 		std::cout << "Sentido NS habilitado" << std::endl;
-		_north.post();
-		_south.wait();
 		this->_direction=s_new_direction;
+		for(int i=0 ; i < _p_trains->getQueuedNorth(); i++){
+			_openNorth();
+		}
 	} else {
 		std::cout << "Ingresar: SN o NS" << std::endl; 
 	}
@@ -104,13 +109,6 @@ void ViaUnica::changeDirection(std::string s_new_direction){
 }
 
 void ViaUnica::del(){
-	if(this->_direction == "SN"){
-		_north.post();
-		_south.wait();
-	} else if(this->_direction == "NS"){
-		_south.post();
-		_north.wait();
-	}
 	std::cout << "Borrando " << this->_mutex << std::endl;
 	this->_mutex.del();
 	std::cout << "Borrando " << this->_north << std::endl;
