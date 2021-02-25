@@ -124,9 +124,14 @@ void ViaUnica::changeDirection(const std::string& s_new_direction){
 			_p_trains->setDirection(SN);
 			
 		} else {
+			std::cout << "Sentido SN habilitado" << std::endl;
 			/*En el caso de que haya adentro y esten en el mismo sentido, no pasa nada*/
 			_p_trains->setDirection(SN);
-			std::cout << "Sentido SN habilitado" << std::endl;
+			/*si hay encolados, los hago entrar*/
+			const int queued_south = _p_trains->getQueuedSouth();
+			for(int i=0 ; i < queued_south; i++){
+				_openSouth();
+			}
 		}
 
 	} else if(s_new_direction.compare("NS") == 0){
@@ -140,6 +145,10 @@ void ViaUnica::changeDirection(const std::string& s_new_direction){
 		} else {
 			std::cout << "Sentido NS habilitado" << std::endl;
 			_p_trains->setDirection(NS);
+			const int queued_north = _p_trains->getQueuedNorth();
+			for(int i=0 ; i < queued_north; i++){
+				_openNorth();
+			}	
 		}
 		
 		
