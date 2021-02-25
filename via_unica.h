@@ -88,6 +88,10 @@ class trains{
 			_oppositeTrainInside=i;
 		}
 
+		bool areTrainsInside(){
+			return (_inside != 0);
+		}
+
 		friend ostream& operator<<(ostream& os, trains& t){
 			return os << "(" << t._queued_north << "," << t._queued_south << "," << t._inside;
 		}
@@ -126,6 +130,9 @@ class ViaUnica {
 		void _openNorth();
 
 		void _openSouth();
+
+		void _openAll(const int queued);
+
 };
 
 #endif
