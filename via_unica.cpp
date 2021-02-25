@@ -32,14 +32,12 @@ void ViaUnica::_openNorth(){
 	_north.post();
 }
 
-
 void ViaUnica::_openSouth(){
 	_p_trains->enterSouth();
 	std::cout << "DEBUG Entro Sur - trenes adentro:" << _p_trains->getInside() << std::endl;
 	std::cout << "En cola sur:" << _p_trains->getQueuedSouth() << std::endl;
 	_south.post();
 }
-
 
 void ViaUnica::inNorth(){
 	_mutex.wait();
@@ -114,44 +112,39 @@ void ViaUnica::outNorth(){
 }
 
 void ViaUnica::changeDirection(const std::string& s_new_direction){
-	//_mutex.wait();
-	if(s_new_direction.compare("SN") == 0){
-		std::cout << "Realizando cambio de via" << std::endl;
-		
-		if(_p_trains->areTrainsInside() && _p_trains->isNorthOpen()){
+	_mutex.wait();
+
+	if (s_new_direction.compare("SN") == 0 && _p_trains->isNorthOpen()){
+		std::cout << "Realizando cambio de via" << std::endl;		
+		if (_p_trains->areTrainsInside() && _p_trains->isNorthOpen()){
 			std::cout << "Sentido SN habilitado pero a la espera de que salgan los trenes del Norte" << std::endl;
-			_p_trains->isOppositeTrainsStillInside(_TRUE);
 			_p_trains->setDirection(SN);
-			
+			_p_trains->isOppositeTrainsStillInside(_TRUE);
 		} else {
 			std::cout << "Sentido SN habilitado" << std::endl;
 			/*En el caso de que haya adentro y esten en el mismo sentido, no pasa nada*/
-			_p_trains->setDirection(SN);
 			/*si hay encolados, los hago entrar*/
+			_p_trains->setDirection(SN);	
 			_openAll(_p_trains->getQueuedSouth());
-			
 		}
-
-	} else if(s_new_direction.compare("NS") == 0){
-		std::cout << "Realizando cambio de via" << std::endl;
 		
-		if(_p_trains->areTrainsInside() && _p_trains->isSouthOpen()) {
+	} else if (s_new_direction.compare("NS") == 0 && _p_trains->isSouthOpen()){
+		std::cout << "Realizando cambio de via" << std::endl;
+		if (_p_trains->areTrainsInside() && _p_trains->isSouthOpen()) {
 			std::cout << "Sentido NS habilitado pero a la espera de que salgan los trenes del Sur" << std::endl;
-			_p_trains->isOppositeTrainsStillInside(_TRUE);
 			_p_trains->setDirection(NS);
-			
+			_p_trains->isOppositeTrainsStillInside(_TRUE);			
 		} else {
-			std::cout << "Sentido NS habilitado" << std::endl;
+			std::cout << "Sentido NS habilitado" << std::endl;			
 			_p_trains->setDirection(NS);
 			_openAll(_p_trains->getQueuedNorth());
 		}
 		
-		
 	} else {
-		std::cout << "Ingresar: SN o NS" << std::endl; 
+		std::cout << "Debe ingresar la direccion opuesta: SN o NS" << std::endl; 
 	}
-	
-	//_mutex.post();
+
+	_mutex.post();
 }
 
 void ViaUnica::del(){
