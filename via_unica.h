@@ -8,6 +8,9 @@
 #define NS 0
 #define SN 1
 
+#define _TRUE 1
+#define _FALSE 0
+
 class trains{
 	private:
 		int _inside;
@@ -15,7 +18,7 @@ class trains{
 		int _queued_south;
 	
 		int _direction=SN;
-		
+		int _oppositeTrainInside=0;
 	public:
 
 		void init(int north=0, int south=0, int inside=0, int dir=SN){
@@ -23,6 +26,7 @@ class trains{
 			_queued_south=south; 
 			_inside=inside; 
 			_direction=dir;
+			_oppositeTrainInside=0;
 			cout<<"trenes inicializado"<<north<<","<<south<<","<<inside << ", dir; " << dir << std::endl;
 		}
 
@@ -74,6 +78,14 @@ class trains{
 
 		bool isSouthOpen(){
 			return (_direction == SN);
+		}
+
+		int isOppositeTrainsStillInside(){
+			return _oppositeTrainInside;
+		}
+
+		void isOppositeTrainsStillInside(int i){
+			_oppositeTrainInside=i;
 		}
 
 		friend ostream& operator<<(ostream& os, trains& t){

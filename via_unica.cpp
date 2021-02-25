@@ -25,12 +25,6 @@ ViaUnica::ViaUnica(std::string key, bool init){
 	std::cout << "Tomado " << this->_memViaUnica << " con valor " << _p_trains->getInside() << std::endl;
 }
 
-/*ver si Race condition? 
-cada in ejecuta esto, por lo tanto
-pueden haber muchas mas posts al estar todos
-iterando*/
-
-/*separar el post del enterNorth para evitar RC cuando hago un for*/
 void ViaUnica::_openNorth(){
 	_p_trains->enterNorth();
 	std::cout << "DEBUG Entro Norte - trenes adentro: " << _p_trains->getInside() << std::endl;
@@ -49,12 +43,11 @@ void ViaUnica::_openSouth(){
 
 void ViaUnica::inNorth(){
 	_mutex.wait();
-	
 	_p_trains->queueNorth();
-
 	std::cout << "En cola norte:" << _p_trains->getQueuedNorth() << std::endl;
-	if(_p_trains->isNorthOpen()){
-		/*abro uno solo, solo funciona si entra de uno
+	
+	if(_p_trains->isNorthOpen() && !_p_trains->isOppositeTrainsStillInside()){
+		/*abro uno solo, solo funciona si entra de a uno
 		acordate que al liberar no siempre es el mismo que lo bloqueo*/
 		_openNorth();
 	}
@@ -67,13 +60,14 @@ void ViaUnica::inNorth(){
 /*mutex no es necesario*/
 void ViaUnica::outSouth(){
 	_mutex.wait();
-	
 	_p_trains->out();
 
 	/*soy el ultimo y hubo un cambio de direccion*/
 	if(_p_trains->getInside() == 0 && _p_trains->isSouthOpen()){
-		_south.post();
-		
+		/*Dado el previo cambio de direccion 
+		estoy seguro de que no hay mas trenes ni los va a haber del otro lado*/
+		_p_trains->isOppositeTrainsStillInside(_FALSE);
+				
 		const int queued_south = _p_trains->getQueuedSouth();
 		for(int i=0 ; i < queued_south; i++){
 			_openSouth();
@@ -87,14 +81,10 @@ void ViaUnica::outSouth(){
 
 void ViaUnica::inSouth(){
 	_mutex.wait();
-	/*NOTA 1: que pasa si cambio direccion pero todavia tengo trenes de SN??*/
-	/*deberia esperar a que se vacie los de ese sentido*/
-	/*actualmente funciona solo si cambio de direccion y esta vacio*/
-	
 	_p_trains->queueSouth();
 	std::cout << "En cola sur:" << _p_trains->getQueuedSouth() << std::endl;
 		
-	if(_p_trains->isSouthOpen()){
+	if(_p_trains->isSouthOpen() && !_p_trains->isOppositeTrainsStillInside()){
 		_openSouth();
 	}
 	
@@ -111,8 +101,7 @@ void ViaUnica::outNorth(){
 	if(_p_trains->getInside() == 0 && _p_trains->isNorthOpen()){
 		/*habilito la barrera norte*/
 		std::cout << "SALIO EL ULTIMO POR EL NORTE" << std::endl;
-		_north.post();
-
+		_p_trains->isOppositeTrainsStillInside(_FALSE);
 		/*Luego hago pasar a todos los trenes encolados*/
 		const int queued_north = _p_trains->getQueuedNorth();
 		for(int i=0 ; i < queued_north; i++){
@@ -131,10 +120,11 @@ void ViaUnica::changeDirection(const std::string& s_new_direction){
 		
 		if(_p_trains->getInside() != 0 && _p_trains->isNorthOpen()){
 			std::cout << "Sentido SN habilitado pero a la espera de que salgan los trenes del Norte" << std::endl;
+			_p_trains->isOppositeTrainsStillInside(_TRUE);
 			_p_trains->setDirection(SN);
-			_south.wait();
-			/*no libero el _mutex!*/
+			
 		} else {
+			/*En el caso de que haya adentro y esten en el mismo sentido, no pasa nada*/
 			_p_trains->setDirection(SN);
 			std::cout << "Sentido SN habilitado" << std::endl;
 		}
@@ -142,12 +132,11 @@ void ViaUnica::changeDirection(const std::string& s_new_direction){
 	} else if(s_new_direction.compare("NS") == 0){
 		std::cout << "Realizando cambio de via" << std::endl;
 		
-		/*Si hay trenes adentro y su direccion es SN, bloqueo la entrada norte
-		para evitar mandar los trenes en la cola norte hasta que hayan salido los que viene por puerta sur*/
 		if(_p_trains->getInside() != 0 && _p_trains->isSouthOpen()) {
 			std::cout << "Sentido NS habilitado pero a la espera de que salgan los trenes del Sur" << std::endl;
+			_p_trains->isOppositeTrainsStillInside(_TRUE);
 			_p_trains->setDirection(NS);
-			_north.wait();
+			
 		} else {
 			std::cout << "Sentido NS habilitado" << std::endl;
 			_p_trains->setDirection(NS);
